@@ -198,6 +198,94 @@ class MainViewModel(context: Context) : ViewModel() {
         }
     }
     
+    fun exportTextToPdf(uri: Uri, onSuccess: (Uri) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            
+            try {
+                // Read text file content
+                fileRepository.readTextFile(uri).fold(
+                    onSuccess = { textContent ->
+                        // Export text content to PDF
+                        pdfExporter.exportTextToPdf(
+                            textContent,
+                            "TextFile"
+                        ).fold(
+                            onSuccess = { pdfUri ->
+                                _uiState.value = _uiState.value.copy(isLoading = false)
+                                onSuccess(pdfUri)
+                            },
+                            onFailure = { error ->
+                                _uiState.value = _uiState.value.copy(
+                                    isLoading = false,
+                                    error = "PDF export failed: ${error.message}"
+                                )
+                                onError("PDF export failed: ${error.message}")
+                            }
+                        )
+                    },
+                    onFailure = { error ->
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = "Failed to read text file: ${error.message}"
+                        )
+                        onError("Failed to read text file: ${error.message}")
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "Text to PDF export failed: ${e.message}"
+                )
+                onError("Text to PDF export failed: ${e.message}")
+            }
+        }
+    }
+    
+    fun exportMdToPdf(uri: Uri, onSuccess: (Uri) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            
+            try {
+                // Read markdown file content
+                fileRepository.readMarkdownFile(uri).fold(
+                    onSuccess = { markdownContent ->
+                        // Export markdown content to PDF
+                        pdfExporter.exportMarkdownToPdfSimple(
+                            markdownContent,
+                            "MarkdownFile"
+                        ).fold(
+                            onSuccess = { pdfUri ->
+                                _uiState.value = _uiState.value.copy(isLoading = false)
+                                onSuccess(pdfUri)
+                            },
+                            onFailure = { error ->
+                                _uiState.value = _uiState.value.copy(
+                                    isLoading = false,
+                                    error = "PDF export failed: ${error.message}"
+                                )
+                                onError("PDF export failed: ${error.message}")
+                            }
+                        )
+                    },
+                    onFailure = { error ->
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = "Failed to read markdown file: ${error.message}"
+                        )
+                        onError("Failed to read markdown file: ${error.message}")
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "MD to PDF export failed: ${e.message}"
+                )
+                onError("MD to PDF export failed: ${e.message}")
+            }
+        }
+    }
+    
     override fun onCleared() {
         super.onCleared()
         // Save current state when ViewModel is cleared

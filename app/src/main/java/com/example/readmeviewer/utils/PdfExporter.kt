@@ -23,6 +23,61 @@ class PdfExporter(private val context: Context) {
         private const val FONT_SIZE = 12f
     }
     
+    suspend fun exportTextToPdf(
+        textContent: String,
+        fileName: String = "TextFile"
+    ): Result<Uri> = withContext(Dispatchers.IO) {
+        var pdfDocument: PdfDocument? = null
+        var fileOutputStream: FileOutputStream? = null
+        
+        try {
+            Log.d(TAG, "Starting text to PDF export...")
+            
+            // Validate input
+            if (textContent.isBlank()) {
+                return@withContext Result.failure(Exception("No content to export"))
+            }
+            
+            // Create PDF file
+            val pdfFile = File(context.cacheDir, "${fileName}_${System.currentTimeMillis()}.pdf")
+            Log.d(TAG, "Creating PDF file: ${pdfFile.absolutePath}")
+            
+            // Create PDF document using Android's built-in PDF API
+            pdfDocument = PdfDocument()
+            
+            // Process text and create pages (simpler processing for plain text)
+            val lines = prepareTextLinesSimple(textContent)
+            createPdfPages(pdfDocument, lines)
+            
+            // Write to file
+            fileOutputStream = FileOutputStream(pdfFile)
+            pdfDocument.writeTo(fileOutputStream)
+            
+            Log.d(TAG, "PDF created successfully, size: ${pdfFile.length()} bytes")
+            
+            // Get URI for the PDF file
+            val pdfUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                pdfFile
+            )
+            
+            Result.success(pdfUri)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Text to PDF export failed: ${e.message}", e)
+            Result.failure(Exception("Text to PDF Export Failed: ${e.message}"))
+        } finally {
+            // Clean up resources
+            try {
+                pdfDocument?.close()
+                fileOutputStream?.close()
+            } catch (e: Exception) {
+                Log.w(TAG, "Cleanup error: ${e.message}")
+            }
+        }
+    }
+
     suspend fun exportMarkdownToPdfSimple(
         markdownText: String,
         fileName: String = "README"
@@ -76,6 +131,28 @@ class PdfExporter(private val context: Context) {
                 Log.w(TAG, "Cleanup error: ${e.message}")
             }
         }
+    }
+    
+    private fun prepareTextLinesSimple(textContent: String): List<String> {
+        val lines = mutableListOf<String>()
+        
+        try {
+            val inputLines = textContent.split("\n")
+            
+            for (line in inputLines) {
+                // For plain text, just wrap long lines and add them as-is
+                val wrappedLines = wrapText(line, 80)
+                lines.addAll(wrappedLines)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error preparing simple text lines: ${e.message}")
+            // Add fallback content
+            lines.add("Content processing error occurred.")
+            lines.add("Original content:")
+            lines.add(textContent.take(1000))  // Limit to first 1000 chars
+        }
+        
+        return lines
     }
     
     private fun prepareTextLines(markdownText: String): List<String> {

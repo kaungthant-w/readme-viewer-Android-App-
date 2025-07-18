@@ -21,6 +21,16 @@ class FileRepository(private val context: Context) {
         }
     }
     
+    suspend fun readTextFile(uri: Uri): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val content = inputStream?.bufferedReader()?.use { it.readText() }
+            Result.success(content ?: "")
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
     suspend fun saveRecentFiles(files: List<RecentFile>) {
         preferencesManager.saveRecentFiles(files)
     }

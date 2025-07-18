@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
+import kotlinx.coroutines.launch
 import com.example.readmeviewer.ui.components.MarkdownWebView
 import com.example.readmeviewer.ui.components.SettingsDialog
 import com.example.readmeviewer.viewmodel.MainViewModel
@@ -42,17 +43,201 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val markdownText by viewModel.markdownText.collectAsState()
     val fontSize by viewModel.fontSize.collectAsState()
+    
+    // Drawer state - only show when no markdown content is loaded
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let { viewModel.selectFile(it) }
     }
+    
+    val textFilePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { 
+            // Handle text file for PDF export
+            viewModel.exportTextToPdf(uri,
+                onSuccess = { pdfUri ->
+                    val shareIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        type = "application/pdf"
+                        putExtra(Intent.EXTRA_STREAM, pdfUri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
+                },
+                onError = { error ->
+                    // Handle error
+                }
+            )
+        }
+    }
+    
+    val mdFilePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { 
+            // Handle MD file for PDF export
+            viewModel.exportMdToPdf(uri,
+                onSuccess = { pdfUri ->
+                    val shareIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        type = "application/pdf"
+                        putExtra(Intent.EXTRA_STREAM, pdfUri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
+                },
+                onError = { error ->
+                    // Handle error
+                }
+            )
+        }
+    }
 
     // Dynamic background color based on theme
     val backgroundColor = if (isDarkMode) Color.Black else Color.White
     val contentColor = if (isDarkMode) Color.White else Color.Black
 
+    // Only show drawer when no markdown content is loaded
+    if (markdownText.isEmpty()) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet(
+                    modifier = Modifier.width(280.dp),
+                    drawerContainerColor = backgroundColor,
+                    drawerContentColor = contentColor
+                ) {
+                    // Drawer Header
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Export Options",
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = contentColor
+                        )
+                    }
+                    
+                    HorizontalDivider(color = contentColor.copy(alpha = 0.2f))
+                    
+                    // Text to PDF Export
+                    NavigationDrawerItem(
+                        icon = {
+                            Icon(
+                                Icons.Default.TextFields,
+                                contentDescription = null,
+                                tint = contentColor
+                            )
+                        },
+                        label = {
+                            Text(
+                                "Text to PDF Export",
+                                color = contentColor
+                            )
+                        },
+                        selected = false,
+                        onClick = {
+                            scope.launch {
+                                drawerState.close()
+                            }
+                            textFilePickerLauncher.launch(arrayOf("text/plain", "text/*"))
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                    
+                    // MD to PDF Export
+                    NavigationDrawerItem(
+                        icon = {
+                            Icon(
+                                Icons.Default.Description,
+                                contentDescription = null,
+                                tint = contentColor
+                            )
+                        },
+                        label = {
+                            Text(
+                                "MD to PDF Export",
+                                color = contentColor
+                            )
+                        },
+                        selected = false,
+                        onClick = {
+                            scope.launch {
+                                drawerState.close()
+                            }
+                            mdFilePickerLauncher.launch(arrayOf("text/markdown", "text/*", "application/octet-stream"))
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+            }
+        ) {
+            MainContent(
+                backgroundColor = backgroundColor,
+                contentColor = contentColor,
+                markdownText = markdownText,
+                uiState = uiState,
+                viewModel = viewModel,
+                filePickerLauncher = filePickerLauncher,
+                onNavigateToFullScreen = onNavigateToFullScreen,
+                isFullScreen = isFullScreen,
+                onExitFullScreen = onExitFullScreen,
+                fontSize = fontSize,
+                isDarkMode = isDarkMode,
+                toggleDarkMode = toggleDarkMode,
+                context = context,
+                drawerState = drawerState,
+                scope = scope
+            )
+        }
+    } else {
+        MainContent(
+            backgroundColor = backgroundColor,
+            contentColor = contentColor,
+            markdownText = markdownText,
+            uiState = uiState,
+            viewModel = viewModel,
+            filePickerLauncher = filePickerLauncher,
+            onNavigateToFullScreen = onNavigateToFullScreen,
+            isFullScreen = isFullScreen,
+            onExitFullScreen = onExitFullScreen,
+            fontSize = fontSize,
+            isDarkMode = isDarkMode,
+            toggleDarkMode = toggleDarkMode,
+            context = context,
+            drawerState = null,
+            scope = scope
+        )
+    }
+}
+
+@Composable
+private fun MainContent(
+    backgroundColor: Color,
+    contentColor: Color,
+    markdownText: String,
+    uiState: com.example.readmeviewer.data.MainUiState,
+    viewModel: MainViewModel,
+    filePickerLauncher: androidx.activity.compose.ManagedActivityResultLauncher<Array<String>, android.net.Uri?>,
+    onNavigateToFullScreen: () -> Unit,
+    isFullScreen: Boolean,
+    onExitFullScreen: () -> Unit,
+    fontSize: Float,
+    isDarkMode: Boolean,
+    toggleDarkMode: () -> Unit,
+    context: android.content.Context,
+    drawerState: DrawerState?,
+    scope: kotlinx.coroutines.CoroutineScope
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -72,7 +257,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left side - Back button (when content is loaded)
+                    // Left side - Menu button (when no content) or Back button (when content is loaded)
                     Box(modifier = Modifier.width(48.dp)) {
                         if (markdownText.isNotEmpty()) {
                             IconButton(
@@ -83,6 +268,20 @@ fun HomeScreen(
                                 Icon(
                                     Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Back",
+                                    tint = contentColor
+                                )
+                            }
+                        } else if (drawerState != null) {
+                            IconButton(
+                                onClick = { 
+                                    scope.launch {
+                                        drawerState.open()
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Menu,
+                                    contentDescription = "Menu",
                                     tint = contentColor
                                 )
                             }
@@ -251,33 +450,17 @@ fun HomeScreen(
                         // Content loaded state
                         Column(modifier = Modifier.fillMaxSize()) {
                             // Markdown content with touch to toggle full screen
-                            Box(
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                MarkdownWebView(
-                                    markdownText = markdownText,
-                                    isDarkMode = isDarkMode,
-                                    fontSize = fontSize,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                                
-                                // Transparent overlay for tap detection (works in both modes)
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .pointerInput(Unit) {
-                                            detectTapGestures(
-                                                onTap = {
-                                                    if (isFullScreen) {
-                                                        onExitFullScreen()
-                                                    } else {
-                                                        onNavigateToFullScreen()
-                                                    }
-                                                }
-                                            )
-                                        }
-                                )
-                            }
+                            MarkdownWebView(
+                                markdownText = markdownText,
+                                isDarkMode = isDarkMode,
+                                fontSize = fontSize,
+                                modifier = Modifier.weight(1f),
+                                onSingleTap = if (!isFullScreen) {
+                                    { onNavigateToFullScreen() }
+                                } else {
+                                    { onExitFullScreen() }
+                                }
+                            )
                             
                             // Simple font size slider
                             Row(

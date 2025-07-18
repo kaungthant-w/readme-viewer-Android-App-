@@ -35,25 +35,13 @@ fun FullScreenScreen(
             .background(backgroundColor)
     ) {
         // Full-screen markdown content with tap to exit
-        Box(modifier = Modifier.fillMaxSize()) {
-            MarkdownWebView(
-                markdownText = markdownText,
-                isDarkMode = isDarkMode,
-                fontSize = fontSize,
-                modifier = Modifier.fillMaxSize()
-            )
-            
-            // Transparent overlay for tap detection to exit full screen
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = { onExitFullScreen() }
-                        )
-                    }
-            )
-        }
+        MarkdownWebView(
+            markdownText = markdownText,
+            isDarkMode = isDarkMode,
+            fontSize = fontSize,
+            modifier = Modifier.fillMaxSize(),
+            onSingleTap = { onExitFullScreen() }
+        )
         
         // Simple close button in top right corner, background
         Box(
