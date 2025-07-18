@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import com.example.readmeviewer.ui.components.MarkdownWebView
 import com.example.readmeviewer.ui.components.SettingsDialog
 import com.example.readmeviewer.viewmodel.MainViewModel
@@ -31,6 +33,8 @@ import com.example.readmeviewer.viewmodel.MainViewModel
 fun HomeScreen(
     viewModel: MainViewModel,
     onNavigateToFullScreen: () -> Unit,
+    isFullScreen: Boolean,
+    onExitFullScreen: () -> Unit,
     isDarkMode: Boolean,
     toggleDarkMode: () -> Unit
 ) {
@@ -106,7 +110,6 @@ fun HomeScreen(
                                 tint = contentColor
                             )
                         }
-                        
                         // Dark mode toggle
                         IconButton(onClick = toggleDarkMode) {
                             Icon(
@@ -115,13 +118,11 @@ fun HomeScreen(
                                 tint = contentColor
                             )
                         }
-                        
                         // Export PDF button (when content is loaded)
                         if (markdownText.isNotEmpty()) {
                             IconButton(onClick = {
                                 viewModel.exportToPdf(
                                     onSuccess = { pdfUri ->
-                                        // Share the PDF file
                                         val shareIntent = Intent().apply {
                                             action = Intent.ACTION_SEND
                                             type = "application/pdf"
@@ -131,7 +132,6 @@ fun HomeScreen(
                                         context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
                                     },
                                     onError = { error ->
-                                        // Fallback to sharing plain text if PDF export fails
                                         val shareIntent = Intent().apply {
                                             action = Intent.ACTION_SEND
                                             type = "text/plain"
@@ -148,9 +148,8 @@ fun HomeScreen(
                                 )
                             }
                         }
-                        
-                        // Full screen button (when content is loaded)
-                        if (markdownText.isNotEmpty()) {
+                        // Full screen button (when content is loaded and not in full screen mode)
+                        if (markdownText.isNotEmpty() && !isFullScreen) {
                             IconButton(onClick = onNavigateToFullScreen) {
                                 Icon(
                                     Icons.Default.Fullscreen,
@@ -251,13 +250,34 @@ fun HomeScreen(
                     else -> {
                         // Content loaded state
                         Column(modifier = Modifier.fillMaxSize()) {
-                            // Markdown content
-                            MarkdownWebView(
-                                markdownText = markdownText,
-                                isDarkMode = isDarkMode,
-                                fontSize = fontSize,
+                            // Markdown content with touch to toggle full screen
+                            Box(
                                 modifier = Modifier.weight(1f)
-                            )
+                            ) {
+                                MarkdownWebView(
+                                    markdownText = markdownText,
+                                    isDarkMode = isDarkMode,
+                                    fontSize = fontSize,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                
+                                // Transparent overlay for tap detection (works in both modes)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onTap = {
+                                                    if (isFullScreen) {
+                                                        onExitFullScreen()
+                                                    } else {
+                                                        onNavigateToFullScreen()
+                                                    }
+                                                }
+                                            )
+                                        }
+                                )
+                            }
                             
                             // Simple font size slider
                             Row(

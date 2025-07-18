@@ -88,6 +88,8 @@ fun ContentView() {
                             onNavigateToFullScreen = {
                                 navController.navigate(Screen.FullScreen.route)
                             },
+                            isFullScreen = false,
+                            onExitFullScreen = {},
                             isDarkMode = isDarkMode,
                             toggleDarkMode = { viewModel.toggleDarkMode() }
                         )

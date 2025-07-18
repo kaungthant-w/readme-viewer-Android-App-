@@ -2,6 +2,7 @@ package com.example.readmeviewer.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
@@ -9,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.readmeviewer.ui.components.MarkdownWebView
@@ -32,13 +34,26 @@ fun FullScreenScreen(
             .fillMaxSize()
             .background(backgroundColor)
     ) {
-        // Full-screen markdown content
-        MarkdownWebView(
-            markdownText = markdownText,
-            isDarkMode = isDarkMode,
-            fontSize = fontSize,
-            modifier = Modifier.fillMaxSize()
-        )
+        // Full-screen markdown content with tap to exit
+        Box(modifier = Modifier.fillMaxSize()) {
+            MarkdownWebView(
+                markdownText = markdownText,
+                isDarkMode = isDarkMode,
+                fontSize = fontSize,
+                modifier = Modifier.fillMaxSize()
+            )
+            
+            // Transparent overlay for tap detection to exit full screen
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { onExitFullScreen() }
+                        )
+                    }
+            )
+        }
         
         // Simple close button in top right corner, background
         Box(
