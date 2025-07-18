@@ -97,6 +97,28 @@ fun HomeScreen(
             )
         }
     }
+    
+    val docFilePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { 
+            // Handle DOC file for PDF export
+            viewModel.exportDocToPdf(uri,
+                onSuccess = { pdfUri ->
+                    val shareIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        type = "application/pdf"
+                        putExtra(Intent.EXTRA_STREAM, pdfUri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
+                },
+                onError = { error ->
+                    // Handle error
+                }
+            )
+        }
+    }
 
     // Dynamic background color based on theme
     val backgroundColor = if (isDarkMode) Color.Black else Color.White
@@ -129,7 +151,7 @@ fun HomeScreen(
                     
                     HorizontalDivider(color = contentColor.copy(alpha = 0.2f))
                     
-                    // Text to PDF Export
+                    // Text to PDF Export (only plain text files)
                     NavigationDrawerItem(
                         icon = {
                             Icon(
@@ -149,7 +171,7 @@ fun HomeScreen(
                             scope.launch {
                                 drawerState.close()
                             }
-                            textFilePickerLauncher.launch(arrayOf("text/plain", "text/*"))
+                            textFilePickerLauncher.launch(arrayOf("text/plain"))
                         },
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
@@ -174,7 +196,35 @@ fun HomeScreen(
                             scope.launch {
                                 drawerState.close()
                             }
-                            mdFilePickerLauncher.launch(arrayOf("text/markdown", "text/*", "application/octet-stream"))
+                            mdFilePickerLauncher.launch(arrayOf("text/markdown", "text/x-markdown"))
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                    
+                    // DOC to PDF Export
+                    NavigationDrawerItem(
+                        icon = {
+                            Icon(
+                                Icons.Default.Article,
+                                contentDescription = null,
+                                tint = contentColor
+                            )
+                        },
+                        label = {
+                            Text(
+                                "DOC to PDF Export",
+                                color = contentColor
+                            )
+                        },
+                        selected = false,
+                        onClick = {
+                            scope.launch {
+                                drawerState.close()
+                            }
+                            docFilePickerLauncher.launch(arrayOf(
+                                "application/msword",
+                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            ))
                         },
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )

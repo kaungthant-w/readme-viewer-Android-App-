@@ -31,6 +31,16 @@ class FileRepository(private val context: Context) {
         }
     }
     
+    suspend fun readDocFile(uri: Uri): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val content = inputStream?.bufferedReader()?.use { it.readText() }
+            Result.success(content ?: "")
+        } catch (e: Exception) {
+            Result.failure(Exception("DOC file reading not fully supported. Try converting to text first."))
+        }
+    }
+    
     suspend fun saveRecentFiles(files: List<RecentFile>) {
         preferencesManager.saveRecentFiles(files)
     }

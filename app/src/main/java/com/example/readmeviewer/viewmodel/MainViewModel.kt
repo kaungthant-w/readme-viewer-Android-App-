@@ -286,6 +286,50 @@ class MainViewModel(context: Context) : ViewModel() {
         }
     }
     
+    fun exportDocToPdf(uri: Uri, onSuccess: (Uri) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            
+            try {
+                // Read DOC file content
+                fileRepository.readDocFile(uri).fold(
+                    onSuccess = { docContent ->
+                        // Export DOC content to PDF
+                        pdfExporter.exportTextToPdf(
+                            docContent,
+                            "DocFile"
+                        ).fold(
+                            onSuccess = { pdfUri ->
+                                _uiState.value = _uiState.value.copy(isLoading = false)
+                                onSuccess(pdfUri)
+                            },
+                            onFailure = { error ->
+                                _uiState.value = _uiState.value.copy(
+                                    isLoading = false,
+                                    error = "PDF export failed: ${error.message}"
+                                )
+                                onError("PDF export failed: ${error.message}")
+                            }
+                        )
+                    },
+                    onFailure = { error ->
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = "Failed to read DOC file: ${error.message}"
+                        )
+                        onError("Failed to read DOC file: ${error.message}")
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "DOC to PDF export failed: ${e.message}"
+                )
+                onError("DOC to PDF export failed: ${e.message}")
+            }
+        }
+    }
+    
     override fun onCleared() {
         super.onCleared()
         // Save current state when ViewModel is cleared
